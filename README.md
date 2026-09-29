@@ -12,11 +12,16 @@ Appen er ren statisk kode. Den har ingen server eller database. Bildene lagres p
 |---|---|
 | `befaringskart.html` | Dobbeltklikk for kart med alle bildene, retningssektorer og bildeliste. Bakgrunnskart fra Kartverket (gråtone/topografisk) eller OpenStreetMap. Krever nett for kartfliser. Må ligge i samme mappe som bildene. |
 | `befaring_autocad.dxf` | Åpne i AutoCAD, eller sett inn med XREF/INSERT i en tegning i EUREF89 UTM32 (meter). Inneholder punkt, retningspil (4 m) og siktsektor langs kartnord, samt nummer. Ctrl+klikk på pil, sirkel eller tekst åpner bildet, så lenge DXF-en ligger i samme mappe som bildene. Lag: BEF_PUNKT, BEF_RETNING, BEF_SIKTSEKTOR, BEF_TEKST. |
+| `befaring_autocad_bilder.lsp` | Setter selve bildene inn i tegningen, som rasterbilder på lag BEF_BILDE. Hvert bilde får en strek til fotopunktet og plasseres bak fotografen, så det ikke dekker retningspilen. APPLOAD filen, skriv `BEFARINGSBILDER` og pek på `befaring_autocad.dxf` i eksportmappen. Standard bildebredde er 8 m (endres øverst i filen). Virker i AutoCAD, Civil 3D og AutoCAD LT 2024 eller nyere. |
 | `befaring_civil3d_PNEZD.csv` | Punktimport i Civil 3D med formatet «PNEZD (comma delimited)». Beskrivelsen er filnavn og merknad. Z er omtrentlig NN2000 (0 der høyde mangler). |
 | `befaring_googleearth.kml` | Åpnes i Google Earth Pro. Bildene vises når KML-filen ligger i samme mappe som bildene. |
 | `befaringslogg.csv` / `.geojson` | Excel og QGIS, som før. |
 
 **«Google Earth (KMZ)»** gir én selvstendig fil med bildene innebygd, for Google Earth (web og Pro). Den kan også importeres i Google My Maps, men der kommer bare punkter, navn og tekst med. Bildene må legges til manuelt i My Maps.
+
+## Kompass i bildet
+
+Under Innstillinger → «Stempel i bildet» velger du hva som tegnes inn i bildet som lagres: kompassbåndet øverst (standard), kompass og en infolinje nederst med prosjekt, tid og koordinater, eller et rent bilde uten stempel. Valget gjelder nye bilder.
 
 ## Filer
 

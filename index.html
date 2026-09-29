@@ -200,6 +200,15 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
       </select>
     </div>
     <div class="field">
+      <label for="sStamp">Stempel i bildet</label>
+      <p>Tegnes inn i bildet som lagres, slik at retningen følger bildet overalt – også i AutoCAD og e-post.</p>
+      <select id="sStamp">
+        <option value="kompass">Kompass øverst</option>
+        <option value="begge">Kompass øverst og prosjekt, tid og koordinater nederst</option>
+        <option value="ingen">Ingen – rent bilde</option>
+      </select>
+    </div>
+    <div class="field">
       <label for="sDecl">Misvisning (grader, øst positiv)</label>
       <p>Kompasset måler magnetisk nord. Rundt 4–5° øst i Oslo i dag. Hent eksakt verdi for stedet fra en misvisningsmodell (WMM) ved behov.</p>
       <input id="sDecl" type="number" step="0.1" inputmode="decimal">
@@ -228,7 +237,7 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
       <p id="storageText"></p>
     </div>
     <div class="field prose">
-      <p><b>Hva som lagres.</b> Hvert bilde får GPS-posisjon og retning skrevet inn i EXIF. «Eksporter mappe» gir mappen Prosjekt/Befaringsdato med bildene og: <b>befaringskart.html</b> (åpnes i nettleseren, kart med bilder), <b>befaring_autocad.dxf</b> (punkter og retningspiler i UTM32, Ctrl+klikk åpner bildet), <b>befaring_civil3d_PNEZD.csv</b> (punktimport), <b>befaring_googleearth.kml</b>, <b>befaringslogg.csv</b> (Excel) og <b>befaringslogg.geojson</b> (QGIS, EPSG:25832). «Google Earth (KMZ)» gir én fil med bildene innebygd.</p>
+      <p><b>Hva som lagres.</b> Hvert bilde får GPS-posisjon og retning skrevet inn i EXIF. «Eksporter mappe» gir mappen Prosjekt/Befaringsdato med bildene og: <b>befaringskart.html</b> (åpnes i nettleseren, kart med bilder), <b>befaring_autocad.dxf</b> (punkter og retningspiler i UTM32, Ctrl+klikk åpner bildet), <b>befaring_autocad_bilder.lsp</b> (setter inn bildene i tegningen), <b>befaring_civil3d_PNEZD.csv</b> (punktimport), <b>befaring_googleearth.kml</b>, <b>befaringslogg.csv</b> (Excel) og <b>befaringslogg.geojson</b> (QGIS, EPSG:25832). «Google Earth (KMZ)» gir én fil med bildene innebygd.</p>
       <p><b>Nøyaktighet.</b> Mobil-GPS gir typisk 3–10 m i grunnriss og dårligere i høyde. Kompasset påvirkes av kumlokk, spunt, armering og biler. Posisjonen regnes om fra mobilens WGS84 til EUREF89 uten tidsepoke-korreksjon (avvik under 1 m, godt innenfor GPS-usikkerheten).</p>
       <p><b>Lagring.</b> Bildene ligger på denne telefonen til du eksporterer dem. «Eksporter mappe» åpner delingsmenyen, der du kan lagre ZIP-filen i OneDrive, Teams eller Filer. Eksporter etter hver befaring.</p>
     </div>
@@ -253,7 +262,7 @@ const ls = {
   get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch{ return d; } },
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
 };
-const settings = Object.assign({decl:4.5, cal:0, geoid:38.9, alt:'ell', size:'2560'}, ls.get('bef.settings', {}));
+const settings = Object.assign({decl:4.5, cal:0, geoid:38.9, alt:'ell', size:'2560', stamp:'kompass'}, ls.get('bef.settings', {}));
 
 /* ---------- geodesy: WGS84/ETRS89 -> UTM32 (Krüger, GRS80) ---------- */
 function toUTM32(latDeg, lonDeg){
@@ -370,33 +379,59 @@ document.addEventListener('visibilitychange', async () => {
 
 /* ---------- compass tape + readout loop ---------- */
 const tape = $('tape'), tctx = tape.getContext('2d');
+function drawCompassTape(ctx, w, h, center, k, sig, emptyText){
+  const F = (wt, px) => `${wt} ${px*k}px "Barlow Semi Condensed", sans-serif`;
+  ctx.textAlign = 'center';
+  if (center == null){
+    ctx.fillStyle = '#9FB6BC'; ctx.font = F(600,13); ctx.fillText(emptyText || 'Kompass ikke aktivt', w/2, h/2 + 4*k); return;
+  }
+  const pxPerDeg = w / 90, start = Math.floor((center - 50)/5)*5;
+  for (let d = start; d <= center + 50; d += 5){
+    const x = w/2 + (d - center)*pxPerDeg, dd = norm360(d);
+    const major = dd % 45 === 0, mid = dd % 15 === 0;
+    ctx.strokeStyle = major ? '#FFFFFF' : 'rgba(255,255,255,.55)'; ctx.lineWidth = (major ? 2 : 1)*k;
+    ctx.beginPath(); ctx.moveTo(x, h); ctx.lineTo(x, h - (major ? 18 : mid ? 12 : 7)*k); ctx.stroke();
+    if (major){ ctx.fillStyle = '#FFFFFF'; ctx.font = F(700,15); ctx.fillText(DIRS[dd/45], x, 20*k); }
+    else if (mid){ ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.font = F(500,12); ctx.fillText(String(dd), x, 20*k); }
+  }
+  ctx.fillStyle = sig;
+  ctx.beginPath(); ctx.moveTo(w/2 - 7*k, h); ctx.lineTo(w/2 + 7*k, h); ctx.lineTo(w/2, h - 12*k); ctx.fill();
+  ctx.fillRect(w/2 - k, 26*k, 2*k, h - 26*k);
+  ctx.font = F(700,17); ctx.textAlign = 'left';
+  ctx.fillText(Math.round(center).toString().padStart(3,'0') + '° kartnord', w/2 + 8*k, 40*k);
+}
 function drawTape(){
   const dpr = window.devicePixelRatio || 1, w = tape.clientWidth, h = tape.clientHeight;
   if (tape.width !== w*dpr || tape.height !== h*dpr){ tape.width = w*dpr; tape.height = h*dpr; }
   tctx.setTransform(dpr,0,0,dpr,0,0); tctx.clearRect(0,0,w,h);
   const hd = headings();
-  const center = hd ? hd.grid : null;
-  const pxPerDeg = w / 90;
-  tctx.font = '600 13px "Barlow Semi Condensed", sans-serif'; tctx.textAlign = 'center';
-  if (center == null){
-    tctx.fillStyle = '#9FB6BC'; tctx.fillText('Kompass ikke aktivt', w/2, h/2+4);
-  } else {
-    const start = Math.floor((center - 50)/5)*5;
-    for (let d = start; d <= center + 50; d += 5){
-      const x = w/2 + (d - center)*pxPerDeg, dd = norm360(d);
-      const major = dd % 45 === 0, mid = dd % 15 === 0;
-      tctx.strokeStyle = major ? '#FFFFFF' : 'rgba(255,255,255,.55)'; tctx.lineWidth = major ? 2 : 1;
-      tctx.beginPath(); tctx.moveTo(x, h); tctx.lineTo(x, h - (major ? 18 : mid ? 12 : 7)); tctx.stroke();
-      if (major){ tctx.fillStyle = '#FFFFFF'; tctx.font = '700 15px "Barlow Semi Condensed", sans-serif'; tctx.fillText(DIRS[dd/45], x, 20); }
-      else if (mid){ tctx.fillStyle = 'rgba(255,255,255,.7)'; tctx.font = '500 12px "Barlow Semi Condensed", sans-serif'; tctx.fillText(String(dd), x, 20); }
-    }
-    const sig = getComputedStyle(document.documentElement).getPropertyValue('--signal').trim() || '#E8590C';
-    tctx.fillStyle = sig; tctx.beginPath(); tctx.moveTo(w/2-7, h); tctx.lineTo(w/2+7, h); tctx.lineTo(w/2, h-12); tctx.fill();
-    tctx.fillRect(w/2-1, 26, 2, h-26);
-    // big numeric
-    tctx.font = '700 17px "Barlow Semi Condensed", sans-serif'; tctx.fillStyle = sig;
-    tctx.textAlign = 'left'; tctx.fillText(Math.round(center).toString().padStart(3,'0') + '°', w/2 + 8, 40);
-  }
+  const sig = getComputedStyle(document.documentElement).getPropertyValue('--signal').trim() || '#E8590C';
+  drawCompassTape(tctx, w, h, hd ? hd.grid : null, 1, sig);
+}
+/* stamp compass (and optional info strip) into the saved photo */
+function stampImage(c, meta){
+  if (settings.stamp === 'ingen') return;
+  const ctx = c.getContext('2d'), w = c.width, H = c.height, k = w / 520, th = 58 * k;
+  let g = ctx.createLinearGradient(0, 0, 0, th);
+  g.addColorStop(0, 'rgba(6,18,22,.85)'); g.addColorStop(1, 'rgba(6,18,22,.6)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, th);
+  drawCompassTape(ctx, w, th, meta.headGrid, k, '#E8590C', 'Retning ukjent');
+  if (settings.stamp !== 'begge') return;
+  const bh = 46 * k;
+  ctx.fillStyle = 'rgba(6,18,22,.75)'; ctx.fillRect(0, H - bh, w, bh);
+  ctx.fillStyle = '#FFFFFF'; ctx.textBaseline = 'middle';
+  const d = new Date(meta.time), p2 = n => String(n).padStart(2,'0');
+  const left = `${meta.project}  ${p2(d.getDate())}.${p2(d.getMonth()+1)}.${d.getFullYear()} ${p2(d.getHours())}:${p2(d.getMinutes())}`;
+  const right = meta.E != null ? `Ø ${fmt(meta.E,1)}  N ${fmt(meta.N,1)}  ±${Math.round(meta.acc)} m` : 'Uten posisjon';
+  ctx.font = `600 ${15*k}px "Barlow Semi Condensed", sans-serif`;
+  ctx.textAlign = 'right'; ctx.fillText(right, w - 12*k, H - bh/2);
+  const rw = ctx.measureText(right).width;
+  ctx.textAlign = 'left'; ctx.font = `500 ${15*k}px "Barlow Semi Condensed", sans-serif`;
+  let lt = left; while (lt.length > 4 && ctx.measureText(lt).width > w - rw - 36*k) lt = lt.slice(0, -2);
+  if (lt !== left) lt = lt.trimEnd() + '…';
+  if (meta.note && ctx.measureText(lt + '  ' + meta.note).width < w - rw - 36*k) lt += '  ' + meta.note;
+  ctx.fillText(lt, 12*k, H - bh/2);
+  ctx.textBaseline = 'alphabetic';
 }
 function tick(){
   drawTape();
@@ -513,6 +548,7 @@ async function saveShot(canvas, meta){
   const dirPart = meta.headGrid != null ? `_R${String(Math.round(meta.headGrid)%360).padStart(3,'0')}` : '';
   meta.filename = `${fileSlug(meta.project)||'Prosjekt'}_${meta.date.replace(/-/g,'')}_${String(meta.seq).padStart(3,'0')}${dirPart}.jpg`;
   canvas = scaleCanvas(canvas);
+  stampImage(canvas, meta);
   let blob = await canvasToBlob(canvas, parseInt(settings.size,10) ? 0.82 : 0.9);
   const ex = buildExif(meta);
   if (ex){ try { blob = await dataURLToBlob(piexif.insert(ex, await blobToDataURL(blob))); } catch {} }
@@ -667,6 +703,58 @@ function buildDxf(recs, project, date){
   g(0,'ENDSEC'); g(0,'EOF');
   return L.join('\r\n') + '\r\n';
 }
+const lspStr = t => '"' + String(t).replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"';
+function buildLisp(recs, project, date){
+  const rows = recs.filter(r => r.E != null).map(r => {
+    const az = r.headGrid != null ? r.headGrid + 180 : 45;   // legg bildet bak fotografen, bort fra pilen
+    const ax = r.E + 2.5*Math.sin(az*Math.PI/180), ay = r.N + 2.5*Math.cos(az*Math.PI/180);
+    const sx = ax >= r.E ? 1 : -1, sy = ay >= r.N ? 1 : -1;
+    return `    (${lspStr(r.filename)} ${r.E.toFixed(3)} ${r.N.toFixed(3)} ${ax.toFixed(3)} ${ay.toFixed(3)} ${sx} ${sy})`;
+  }).join('\n');
+  const title = String(`${project} ${date}`).replace(/[^\x20-\x7E]/g,'?').replace(/"/g,"'");
+  return `;;; Befaringsbilder - ${title}
+;;; Setter inn befaringsbildene som rasterbilder i EUREF89 UTM32 (meter), paa lag BEF_BILDE.
+;;; Bruk: APPLOAD denne filen, skriv BEFARINGSBILDER og velg befaring_autocad.dxf i eksportmappen.
+;;; Bildebredde i meter kan endres under (8 m = 16 mm i 1:500).
+(vl-load-com)
+(defun c:BEFARINGSBILDER ( / bredde data f dir doc ms lays p obj w h ox oy n)
+  (setq bredde 8.0)
+  (setq data '(
+${rows}
+  ))
+  (setq f (getfiled "Velg befaring_autocad.dxf i eksportmappen" "" "dxf" 0))
+  (if f
+    (progn
+      (setq dir (vl-filename-directory f)
+            doc (vla-get-ActiveDocument (vlax-get-acad-object))
+            ms  (vla-get-ModelSpace doc)
+            lays (vla-get-Layers doc)
+            n 0)
+      (if (not (tblsearch "LAYER" "BEF_BILDE")) (vla-put-Color (vla-Add lays "BEF_BILDE") 8))
+      (vla-StartUndoMark doc)
+      (foreach r data
+        (setq p (strcat dir "\\\\" (car r)))
+        (if (findfile p)
+          (progn
+            (setq obj (vla-AddRaster ms p (vlax-3d-point (list (nth 3 r) (nth 4 r) 0.0)) 1.0 0.0))
+            (setq w (vla-get-ImageWidth obj))
+            (if (> w 0.0) (vla-put-ScaleFactor obj (* (vla-get-ScaleFactor obj) (/ bredde w))))
+            (setq w (vla-get-ImageWidth obj) h (vla-get-ImageHeight obj))
+            (setq ox (if (< (nth 5 r) 0) (- (nth 3 r) w) (nth 3 r))
+                  oy (if (< (nth 6 r) 0) (- (nth 4 r) h) (nth 4 r)))
+            (vla-put-Origin obj (vlax-3d-point (list ox oy 0.0)))
+            (vla-put-Layer obj "BEF_BILDE")
+            (entmake (list '(0 . "LINE") '(8 . "BEF_BILDE")
+                           (list 10 (nth 1 r) (nth 2 r) 0.0) (list 11 (nth 3 r) (nth 4 r) 0.0)))
+            (setq n (1+ n)))
+          (princ (strcat "\\nFant ikke " p))))
+      (vla-EndUndoMark doc)
+      (princ (strcat "\\n" (itoa n) " bilder satt inn paa lag BEF_BILDE."))))
+  (princ))
+(princ "\\nBefaringsbilder lastet. Skriv BEFARINGSBILDER.")
+(princ)
+`;
+}
 function buildPnezd(recs){
   return recs.filter(r => r.E != null).map(r =>
     [r.seq, r.N.toFixed(3), r.E.toFixed(3), (r.hNN ?? 0).toFixed(2),
@@ -792,6 +880,7 @@ async function exportGroup(project, date, recs){
   folder.file('befaringskart.html', buildMapHtml(recs, project, date));
   folder.file('befaring_autocad.dxf', buildDxf(recs, project, date));
   folder.file('befaring_civil3d_PNEZD.csv', buildPnezd(recs));
+  folder.file('befaring_autocad_bilder.lsp', buildLisp(recs, project, date));
   folder.file('befaring_googleearth.kml', buildKml(recs, project, date, ''));
   folder.file('pil.png', await iconPng(true)); folder.file('punkt.png', await iconPng(false));
   const blob = await zip.generateAsync({ type:'blob' });
@@ -823,7 +912,7 @@ function downloadBlob(blob, filename){
 }
 
 /* ---------- settings ---------- */
-[['sSize','size'],['sDecl','decl'],['sCal','cal'],['sGeoid','geoid'],['sAlt','alt']].forEach(([id,key]) => {
+[['sSize','size'],['sStamp','stamp'],['sDecl','decl'],['sCal','cal'],['sGeoid','geoid'],['sAlt','alt']].forEach(([id,key]) => {
   const el = $(id); el.value = settings[key];
   el.addEventListener('change', () => { settings[key] = el.type === 'number' ? (parseFloat(el.value) || 0) : el.value; ls.set('bef.settings', settings); });
 });
