@@ -4,6 +4,20 @@ Befaringsfoto med retning (kartnord) og koordinater i EUREF89 UTM32 (EPSG:25832)
 
 Appen er ren statisk kode. Den har ingen server eller database. Bildene lagres på telefonen til de eksporteres.
 
+## Eksport
+
+**«Eksporter mappe»** gir en ZIP-fil med mappen `Prosjekt/Befaringsdato/`. Den inneholder bildene og disse filene:
+
+| Fil | Bruk |
+|---|---|
+| `befaringskart.html` | Dobbeltklikk for kart med alle bildene, retningssektorer og bildeliste. Bakgrunnskart fra Kartverket (gråtone/topografisk) eller OpenStreetMap. Krever nett for kartfliser. Må ligge i samme mappe som bildene. |
+| `befaring_autocad.dxf` | Åpne i AutoCAD, eller sett inn med XREF/INSERT i en tegning i EUREF89 UTM32 (meter). Inneholder punkt, retningspil (4 m) og siktsektor langs kartnord, samt nummer. Ctrl+klikk på pil, sirkel eller tekst åpner bildet, så lenge DXF-en ligger i samme mappe som bildene. Lag: BEF_PUNKT, BEF_RETNING, BEF_SIKTSEKTOR, BEF_TEKST. |
+| `befaring_civil3d_PNEZD.csv` | Punktimport i Civil 3D med formatet «PNEZD (comma delimited)». Beskrivelsen er filnavn og merknad. Z er omtrentlig NN2000 (0 der høyde mangler). |
+| `befaring_googleearth.kml` | Åpnes i Google Earth Pro. Bildene vises når KML-filen ligger i samme mappe som bildene. |
+| `befaringslogg.csv` / `.geojson` | Excel og QGIS, som før. |
+
+**«Google Earth (KMZ)»** gir én selvstendig fil med bildene innebygd, for Google Earth (web og Pro). Den kan også importeres i Google My Maps, men der kommer bare punkter, navn og tekst med. Bildene må legges til manuelt i My Maps.
+
 ## Filer
 
 | Fil | Hva den gjør |
