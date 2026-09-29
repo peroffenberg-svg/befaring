@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="nb">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Befaring</title>
+<meta name="description" content="Befaringsfoto med retning og EUREF89 UTM32-koordinater, sortert på prosjekt og dato.">
+<meta name="theme-color" content="#0E2830">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Befaring">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.min.js" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" crossorigin="anonymous"></script>
+<style>
+:root{
+  --bg:#EDF1F0; --surface:#FFFFFF; --ink:#0E2830; --muted:#56707A; --line:#C9D4D3;
+  --signal:#E8590C; --signal-ink:#FFFFFF; --water:#1E5E86; --ok:#2F7D4F; --warn:#B7791F; --bad:#B42318;
+  --vf:#061216;
+  --sans:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --num:"Barlow Semi Condensed","Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0C1A1F; --surface:#132A31; --ink:#E6EEF0; --muted:#93A9B0; --line:#25424B;
+    --signal:#FF7A2E; --signal-ink:#1A0A00; --water:#5AA9D6; --ok:#5CC08A; --warn:#E3B04B; --bad:#F2766B;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0C1A1F; --surface:#132A31; --ink:#E6EEF0; --muted:#93A9B0; --line:#25424B;
+  --signal:#FF7A2E; --signal-ink:#1A0A00; --water:#5AA9D6; --ok:#5CC08A; --warn:#E3B04B; --bad:#F2766B;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.45;-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--water);outline-offset:2px}
+img{max-width:100%}
+
+.app{max-width:560px;margin:0 auto;padding:12px 14px calc(88px + env(safe-area-inset-bottom,0px))}
+
+/* job header */
+.job{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:end;margin-bottom:10px}
+.job label{display:block;font-size:13px;color:var(--muted);margin-bottom:2px}
+.job input{width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font-size:17px;font-weight:600}
+.job input[type=date]{font-family:var(--num);font-weight:600;min-width:9.5em}
+.job input:focus{border-color:var(--water);outline:none}
+
+/* viewfinder */
+.vf{position:relative;background:var(--vf);border-radius:16px;overflow:hidden;aspect-ratio:3/4;max-height:58vh;width:100%}
+.vf video{width:100%;height:100%;object-fit:cover;display:block}
+.vf .placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#D5E2E5;text-align:center;padding:24px}
+.vf .placeholder p{margin:0;max-width:30ch;font-size:15px;color:#9FB6BC}
+.tape{position:absolute;left:0;right:0;top:0;height:58px;background:linear-gradient(rgba(6,18,22,.82),rgba(6,18,22,.55));}
+.tape canvas{width:100%;height:100%;display:block}
+.reticle{position:absolute;left:50%;top:50%;width:44px;height:44px;margin:-22px 0 0 -22px;pointer-events:none;opacity:.8}
+.reticle::before,.reticle::after{content:"";position:absolute;background:#fff}
+.reticle::before{left:50%;top:0;bottom:0;width:1px}
+.reticle::after{top:50%;left:0;right:0;height:1px}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none}
+.flash.on{animation:flash .35s ease-out}
+@keyframes flash{from{opacity:.85}to{opacity:0}}
+@media (prefers-reduced-motion: reduce){.flash.on{animation:none}}
+
+/* readout */
+.readout{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-top:10px}
+.readout div{background:var(--surface);padding:8px 10px}
+.readout dt{font-size:12px;color:var(--muted)}
+.readout dd{margin:0;font-family:var(--num);font-weight:600;font-size:20px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.readout .wide{grid-column:span 3;display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.readout .wide dd{font-size:15px;font-weight:500;color:var(--muted);white-space:normal;text-align:right}
+
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:4px 10px;border-radius:99px;background:var(--surface);border:1px solid var(--line)}
+.chip i{width:8px;height:8px;border-radius:50%;background:var(--muted);display:inline-block}
+.chip.ok i{background:var(--ok)} .chip.warn i{background:var(--warn)} .chip.bad i{background:var(--bad)}
+button.chip{border-style:dashed}
+
+.shoot{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;margin-top:12px}
+.shoot input{width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:10px;padding:12px}
+.shutter{width:78px;height:78px;border-radius:50%;border:5px solid var(--surface);background:var(--signal);box-shadow:0 0 0 2px var(--signal);color:var(--signal-ink);font-weight:700;font-size:13px;display:flex;align-items:center;justify-content:center}
+.shutter:active{transform:scale(.95)}
+.shutter[disabled]{opacity:.45}
+.lastshot{margin-top:10px;font-size:14px;color:var(--muted);min-height:1.4em;overflow-wrap:anywhere}
+.lastshot b{color:var(--ink);font-family:var(--num);font-weight:600}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:10px;padding:11px 16px;border:1.5px solid var(--line);background:var(--surface);font-weight:600}
+.btn.primary{background:var(--signal);border-color:var(--signal);color:var(--signal-ink)}
+.btn.small{padding:7px 12px;font-size:14px}
+.btn.danger{color:var(--bad)}
+
+/* photo list */
+h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
+.group{background:var(--surface);border:1px solid var(--line);border-radius:14px;margin-bottom:14px;overflow:hidden}
+.group header{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.group header .path{font-family:var(--num);font-weight:600;font-size:17px;overflow-wrap:anywhere}
+.group header .count{font-size:13px;color:var(--muted)}
+.shot{display:grid;grid-template-columns:84px 1fr auto;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);align-items:center}
+.shot:last-child{border-bottom:0}
+.shot img{width:84px;height:84px;object-fit:cover;border-radius:8px;background:var(--vf)}
+.shot .fn{font-family:var(--num);font-weight:600;font-size:15px;overflow-wrap:anywhere}
+.shot .meta{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+.shot .note{font-size:14px}
+.arrow{width:30px;height:30px;display:block}
+.empty{padding:28px 18px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:14px}
+
+/* settings */
+.field{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px}
+.field label{font-weight:600;display:block}
+.field p{margin:4px 0 8px;font-size:14px;color:var(--muted)}
+.field input,.field select{width:100%;background:var(--bg);border:1.5px solid var(--line);border-radius:8px;padding:9px 10px;font-family:var(--num);font-size:17px}
+.prose{font-size:15px;color:var(--muted)}
+.prose b{color:var(--ink)}
+
+/* tabs */
+.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom,0px);z-index:10}
+.tabs div{display:flex;width:100%;max-width:560px}
+.tabs button{flex:1;background:none;border:0;padding:12px 4px 14px;font-weight:600;color:var(--muted);border-top:3px solid transparent}
+.tabs button[aria-selected="true"]{color:var(--ink);border-top-color:var(--signal)}
+
+.toast{position:fixed;left:50%;bottom:calc(86px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;max-width:calc(100% - 28px);opacity:0;pointer-events:none;transition:opacity .2s;z-index:20}
+.toast.on{opacity:1}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <section id="view-shoot">
+    <div class="job">
+      <div>
+        <label for="proj">Prosjekt</label>
+        <input id="proj" list="projlist" placeholder="f.eks. 1234 Nordbergveien" autocomplete="off">
+        <datalist id="projlist"></datalist>
+      </div>
+      <div>
+        <label for="bdate">Befaringsdato</label>
+        <input id="bdate" type="date">
+      </div>
+    </div>
+
+    <div class="vf" id="vf">
+      <video id="video" playsinline muted autoplay hidden></video>
+      <div class="placeholder" id="placeholder">
+        <button class="btn primary" id="startBtn">Start befaring</button>
+        <p id="phText">Slår på kamera, GPS og kompass. Telefonen spør om tillatelse.</p>
+      </div>
+      <div class="reticle" id="reticle" hidden></div>
+      <div class="tape"><canvas id="tape"></canvas></div>
+      <div class="flash" id="flash"></div>
+    </div>
+
+    <dl class="readout">
+      <div><dt>Øst (UTM32)</dt><dd id="rE">–</dd></div>
+      <div><dt>Nord (UTM32)</dt><dd id="rN">–</dd></div>
+      <div><dt>Høyde NN2000</dt><dd id="rH">–</dd></div>
+      <div class="wide"><dt>Retning</dt><dd id="rDir">Kompass ikke startet</dd></div>
+    </dl>
+
+    <div class="chips">
+      <span class="chip" id="cGps"><i></i><span>GPS av</span></span>
+      <span class="chip" id="cCmp"><i></i><span>Kompass av</span></span>
+      <span class="chip" id="cCam"><i></i><span>Kamera av</span></span>
+    </div>
+
+    <div class="shoot">
+      <input id="note" placeholder="Merknad til neste bilde (valgfritt)">
+      <button class="shutter" id="shutter" aria-label="Ta bilde">Ta bilde</button>
+    </div>
+    <input id="fileCam" type="file" accept="image/*" capture="environment" hidden>
+    <div class="lastshot" id="lastshot"></div>
+  </section>
+
+  <section id="view-list" hidden>
+    <h2>Bilder</h2>
+    <div id="groups"></div>
+  </section>
+
+  <section id="view-settings" hidden>
+    <h2>Innstillinger</h2>
+    <div class="field">
+      <label for="sDecl">Misvisning (grader, øst positiv)</label>
+      <p>Kompasset måler magnetisk nord. Rundt 4–5° øst i Oslo i dag. Hent eksakt verdi for stedet fra en misvisningsmodell (WMM) ved behov.</p>
+      <input id="sDecl" type="number" step="0.1" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="sCal">Kompasskorreksjon (grader)</label>
+      <p>Legges til målt retning. Sikt mot et kjent punkt (f.eks. langs en gate du kjenner retningen på i kartet) og juster til appen viser riktig kartnord.</p>
+      <input id="sCal" type="number" step="0.5" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="sGeoid">Geoidehøyde (meter)</label>
+      <p>NN2000-høyde = ellipsoidisk høyde − geoidehøyde. Ca. 39 m i Oslo-området. Kontroller mot Kartverkets høydereferansemodell (HREF) for stedet.</p>
+      <input id="sGeoid" type="number" step="0.1" inputmode="decimal">
+    </div>
+    <div class="field">
+      <label for="sAlt">Mobilens høydeverdi er</label>
+      <p>Nettleseren skal oppgi høyde over ellipsoiden, men noen telefoner gir høyde over havet. Test på et punkt med kjent høyde.</p>
+      <select id="sAlt">
+        <option value="ell">Ellipsoidisk (trekk fra geoidehøyde)</option>
+        <option value="msl">Allerede over havet (bruk direkte)</option>
+      </select>
+    </div>
+    <div class="field prose" id="installBox">
+      <p><b>Installer som app.</b> <span id="installText">iPhone: åpne siden i Safari, trykk Del-knappen og velg «Legg til på Hjem-skjerm». Android: åpne i Chrome og velg «Installer app» i menyen.</span></p>
+      <button class="btn primary small" id="installBtn" hidden>Installer app</button>
+      <p id="storageText"></p>
+    </div>
+    <div class="field prose">
+      <p><b>Hva som lagres.</b> Hvert bilde får GPS-posisjon og retning skrevet inn i EXIF, og eksporten inneholder <b>befaringslogg.csv</b> (for Excel) og <b>befaringslogg.geojson</b> i EPSG:25832 (for QGIS, Gemini o.l.), lagt i mappen Prosjekt/Befaringsdato.</p>
+      <p><b>Nøyaktighet.</b> Mobil-GPS gir typisk 3–10 m i grunnriss og dårligere i høyde. Kompasset påvirkes av kumlokk, spunt, armering og biler. Posisjonen regnes om fra mobilens WGS84 til EUREF89 uten tidsepoke-korreksjon (avvik under 1 m, godt innenfor GPS-usikkerheten).</p>
+      <p><b>Lagring.</b> Bildene ligger på denne telefonen til du eksporterer dem. «Eksporter mappe» åpner delingsmenyen, der du kan lagre ZIP-filen i OneDrive, Teams eller Filer. Eksporter etter hver befaring.</p>
+    </div>
+  </section>
+
+</div>
+
+<nav class="tabs"><div role="tablist">
+  <button role="tab" aria-selected="true" data-view="shoot">Ta bilder</button>
+  <button role="tab" aria-selected="false" data-view="list" id="tabList">Bilder</button>
+  <button role="tab" aria-selected="false" data-view="settings">Innstillinger</button>
+</div></nav>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+
+/* ---------- small storage helpers (per-viewer, guarded) ---------- */
+const ls = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); }catch{ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch{} }
+};
+const settings = Object.assign({decl:4.5, cal:0, geoid:38.9, alt:'ell'}, ls.get('bef.settings', {}));
+
+/* ---------- geodesy: WGS84/ETRS89 -> UTM32 (Krüger, GRS80) ---------- */
+function toUTM32(latDeg, lonDeg){
+  const a=6378137, f=1/298.257222101, k0=0.9996, lon0=9*Math.PI/180;
+  const n=f/(2-f), e=Math.sqrt(f*(2-f));
+  const A=a/(1+n)*(1+n*n/4+n**4/64);
+  const al=[n/2-2*n*n/3+5*n**3/16, 13*n*n/48-3*n**3/5, 61*n**3/240];
+  const phi=latDeg*Math.PI/180, dl=lonDeg*Math.PI/180-lon0, s=Math.sin(phi);
+  const t=Math.sinh(Math.atanh(s)-e*Math.atanh(e*s));
+  const xp=Math.atan2(t,Math.cos(dl)), ep=Math.atanh(Math.sin(dl)/Math.sqrt(1+t*t));
+  let xi=xp, eta=ep;
+  for(let j=1;j<=3;j++){ xi+=al[j-1]*Math.sin(2*j*xp)*Math.cosh(2*j*ep); eta+=al[j-1]*Math.cos(2*j*xp)*Math.sinh(2*j*ep); }
+  return { E:500000+k0*A*eta, N:k0*A*xi, conv:Math.atan(Math.tan(dl)*s)*180/Math.PI };
+}
+const norm360 = d => ((d % 360) + 360) % 360;
+const DIRS = ['N','NØ','Ø','SØ','S','SV','V','NV'];
+const dirName = d => DIRS[Math.round(norm360(d)/45) % 8];
+const fmt = (x, dec=2) => x == null || isNaN(x) ? '–' : x.toLocaleString('nb-NO',{minimumFractionDigits:dec,maximumFractionDigits:dec});
+
+/* ---------- live state ---------- */
+const live = { pos:null, magHeading:null, cmpSrc:null, sx:0, sy:0, lastOrient:0 };
+let stream = null;
+
+function nnHeight(p){
+  if (!p || p.altitude == null) return null;
+  return settings.alt === 'msl' ? p.altitude : p.altitude - settings.geoid;
+}
+function headings(){
+  if (live.magHeading == null) return null;
+  const tru = norm360(live.magHeading + Number(settings.decl) + Number(settings.cal));
+  const conv = live.pos ? toUTM32(live.pos.lat, live.pos.lon).conv : 1.5;
+  return { mag: norm360(live.magHeading + Number(settings.cal)), tru, grid: norm360(tru - conv), conv };
+}
+
+/* ---------- compass ---------- */
+function tiltHeading(alpha, beta, gamma){
+  // direction of the back camera (device -Z) projected on the horizontal plane
+  const r = Math.PI/180, a=alpha*r, b=beta*r, g=gamma*r;
+  const sA=Math.sin(a), cA=Math.cos(a), sB=Math.sin(b), cB=Math.cos(b), sG=Math.sin(g), cG=Math.cos(g);
+  const E = -(cG*sA*sB + cA*sG);
+  const N = cA*cG*sB - sA*sG;
+  if (Math.hypot(E,N) < 0.15) { return norm360(360 - alpha); } // phone lying flat: use top edge
+  return norm360(Math.atan2(E, N) * 180/Math.PI);
+}
+function onOrient(e){
+  let h = null, src = null;
+  if (typeof e.webkitCompassHeading === 'number' && !isNaN(e.webkitCompassHeading)) { h = e.webkitCompassHeading; src = 'iOS kompass'; }
+  else if ((e.absolute || e.type === 'deviceorientationabsolute') && e.alpha != null) { h = tiltHeading(e.alpha, e.beta||0, e.gamma||0); src = 'Android kompass'; }
+  if (h == null) return;
+  const r = h*Math.PI/180;
+  live.sx = live.sx*0.75 + Math.sin(r)*0.25;
+  live.sy = live.sy*0.75 + Math.cos(r)*0.25;
+  live.magHeading = norm360(Math.atan2(live.sx, live.sy)*180/Math.PI);
+  live.cmpSrc = src; live.lastOrient = Date.now();
+}
+async function startCompass(){
+  try{
+    if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function'){
+      const res = await DeviceOrientationEvent.requestPermission();
+      if (res !== 'granted') { setChip('cCmp','bad','Kompass avslått'); return; }
+    }
+    if ('ondeviceorientationabsolute' in window) window.addEventListener('deviceorientationabsolute', onOrient);
+    window.addEventListener('deviceorientation', onOrient);
+    setChip('cCmp','warn','Kompass venter');
+    setTimeout(() => { if (live.magHeading == null) setChip('cCmp','bad','Kompass ikke tilgjengelig'); }, 3000);
+  }catch(err){ setChip('cCmp','bad','Kompass blokkert'); }
+}
+
+/* ---------- GPS ---------- */
+function startGps(){
+  if (!('geolocation' in navigator)) { setChip('cGps','bad','GPS mangler'); return; }
+  setChip('cGps','warn','Venter på GPS');
+  navigator.geolocation.watchPosition(p => {
+    live.pos = { lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy,
+                 altitude:p.coords.altitude, altAcc:p.coords.altitudeAccuracy, t:p.timestamp };
+    const acc = Math.round(p.coords.accuracy);
+    setChip('cGps', acc <= 10 ? 'ok' : 'warn', `GPS ±${acc} m`);
+  }, err => {
+    setChip('cGps','bad', err.code === 1 ? 'GPS avslått' : 'GPS utilgjengelig');
+  }, { enableHighAccuracy:true, maximumAge:1000, timeout:20000 });
+}
+
+/* ---------- camera ---------- */
+async function startCamera(){
+  try{
+    stream = await navigator.mediaDevices.getUserMedia({ audio:false,
+      video:{ facingMode:{ideal:'environment'}, width:{ideal:3840}, height:{ideal:2880} } });
+    const v = $('video'); v.srcObject = stream; v.hidden = false; await v.play().catch(()=>{});
+    $('placeholder').hidden = true; $('reticle').hidden = false;
+    setChip('cCam','ok','Kamera i appen');
+  }catch(err){
+    $('startBtn').hidden = true;
+    $('phText').textContent = 'Kameraet kunne ikke startes i appen. Trykk «Ta bilde» for å bruke telefonens kamera. Retning og posisjon låses i det du trykker, så sikt før du trykker.';
+    setChip('cCam','warn','Telefonens kamera');
+  }
+}
+function setChip(id, state, text){ const c=$(id); c.className='chip '+state; c.querySelector('span').textContent=text; }
+
+let wakeLock = null, started = false;
+async function keepAwake(){ try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch{} }
+$('startBtn').addEventListener('click', async () => {
+  $('startBtn').disabled = true;
+  await startCompass();   // must run inside the tap on iOS
+  startGps();
+  await startCamera();
+  started = true; keepAwake();
+});
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState !== 'visible' || !started) return;
+  keepAwake();
+  const live = stream && stream.getVideoTracks().some(t => t.readyState === 'live');
+  if (stream && !live){ stream = null; await startCamera(); }
+});
+
+/* ---------- compass tape + readout loop ---------- */
+const tape = $('tape'), tctx = tape.getContext('2d');
+function drawTape(){
+  const dpr = window.devicePixelRatio || 1, w = tape.clientWidth, h = tape.clientHeight;
+  if (tape.width !== w*dpr || tape.height !== h*dpr){ tape.width = w*dpr; tape.height = h*dpr; }
+  tctx.setTransform(dpr,0,0,dpr,0,0); tctx.clearRect(0,0,w,h);
+  const hd = headings();
+  const center = hd ? hd.grid : null;
+  const pxPerDeg = w / 90;
+  tctx.font = '600 13px "Barlow Semi Condensed", sans-serif'; tctx.textAlign = 'center';
+  if (center == null){
+    tctx.fillStyle = '#9FB6BC'; tctx.fillText('Kompass ikke aktivt', w/2, h/2+4);
+  } else {
+    const start = Math.floor((center - 50)/5)*5;
+    for (let d = start; d <= center + 50; d += 5){
+      const x = w/2 + (d - center)*pxPerDeg, dd = norm360(d);
+      const major = dd % 45 === 0, mid = dd % 15 === 0;
+      tctx.strokeStyle = major ? '#FFFFFF' : 'rgba(255,255,255,.55)'; tctx.lineWidth = major ? 2 : 1;
+      tctx.beginPath(); tctx.moveTo(x, h); tctx.lineTo(x, h - (major ? 18 : mid ? 12 : 7)); tctx.stroke();
+      if (major){ tctx.fillStyle = '#FFFFFF'; tctx.font = '700 15px "Barlow Semi Condensed", sans-serif'; tctx.fillText(DIRS[dd/45], x, 20); }
+      else if (mid){ tctx.fillStyle = 'rgba(255,255,255,.7)'; tctx.font = '500 12px "Barlow Semi Condensed", sans-serif'; tctx.fillText(String(dd), x, 20); }
+    }
+    const sig = getComputedStyle(document.documentElement).getPropertyValue('--signal').trim() || '#E8590C';
+    tctx.fillStyle = sig; tctx.beginPath(); tctx.moveTo(w/2-7, h); tctx.lineTo(w/2+7, h); tctx.lineTo(w/2, h-12); tctx.fill();
+    tctx.fillRect(w/2-1, 26, 2, h-26);
+    // big numeric
+    tctx.font = '700 17px "Barlow Semi Condensed", sans-serif'; tctx.fillStyle = sig;
+    tctx.textAlign = 'left'; tctx.fillText(Math.round(center).toString().padStart(3,'0') + '°', w/2 + 8, 40);
+  }
+}
+function tick(){
+  drawTape();
+  if (live.pos){
+    const u = toUTM32(live.pos.lat, live.pos.lon);
+    $('rE').textContent = fmt(u.E, 1); $('rN').textContent = fmt(u.N, 1);
+    const hh = nnHeight(live.pos); $('rH').textContent = hh == null ? 'ukjent' : 'ca. ' + fmt(hh, 1);
+  }
+  const hd = headings();
+  if (hd){
+    $('rDir').textContent = `${Math.round(hd.grid)}° ${dirName(hd.grid)} kartnord · ${Math.round(hd.mag)}° magnetisk`;
+    if (Date.now() - live.lastOrient < 2000) setChip('cCmp','ok', live.cmpSrc);
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+/* ---------- project + date ---------- */
+const today = () => { const d = new Date(); return new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,10); };
+$('bdate').value = today();
+$('proj').value = ls.get('bef.lastProj', '');
+function refreshProjList(){
+  const list = ls.get('bef.projects', []);
+  $('projlist').innerHTML = ''; list.forEach(p => { const o=document.createElement('option'); o.value=p; $('projlist').appendChild(o); });
+}
+refreshProjList();
+function rememberProject(p){
+  const list = ls.get('bef.projects', []).filter(x => x !== p); list.unshift(p);
+  ls.set('bef.projects', list.slice(0,20)); ls.set('bef.lastProj', p); refreshProjList();
+}
+const slug = s => s.normalize('NFC').replace(/[\\/:*?"<>|#%&{}~]+/g,'').replace(/\s+/g,' ').trim();
+const fileSlug = s => slug(s).replace(/æ/g,'ae').replace(/ø/g,'o').replace(/å/g,'a').replace(/Æ/g,'AE').replace(/Ø/g,'O').replace(/Å/g,'A').replace(/[^A-Za-z0-9_-]+/g,'_').replace(/_+/g,'_').replace(/^_|_$/g,'').slice(0,40);
+
+/* ---------- IndexedDB photo store ---------- */
+let idb = null; const memStore = [];
+function openDb(){
+  return new Promise(res => {
+    try{
+      const rq = indexedDB.open('befaring', 1);
+      rq.onupgradeneeded = () => { const s = rq.result.createObjectStore('photos', {keyPath:'id'}); s.createIndex('group','group'); };
+      rq.onsuccess = () => res(rq.result); rq.onerror = () => res(null);
+    }catch{ res(null); }
+  });
+}
+function tx(mode){ return idb.transaction('photos', mode).objectStore('photos'); }
+function dbAll(){ if (!idb) return Promise.resolve(memStore.slice());
+  return new Promise(res => { try{ const r = tx('readonly').getAll(); r.onsuccess=()=>res(r.result||[]); r.onerror=()=>res([]);}catch{res([]);} }); }
+function dbPut(rec){ if (!idb){ memStore.push(rec); return Promise.resolve(); }
+  return new Promise((res,rej) => { try{ const r = tx('readwrite').put(rec); r.onsuccess=()=>res(); r.onerror=()=>rej(r.error);}catch(e){rej(e);} }); }
+function dbDel(id){ if (!idb){ const i=memStore.findIndex(r=>r.id===id); if(i>=0) memStore.splice(i,1); return Promise.resolve(); }
+  return new Promise(res => { try{ const r = tx('readwrite').delete(id); r.onsuccess=()=>res(); r.onerror=()=>res(); }catch{res();} }); }
+
+/* ---------- EXIF ---------- */
+function dms(v){ v=Math.abs(v); const d=Math.floor(v), mf=(v-d)*60, m=Math.floor(mf), s=Math.round((mf-m)*60*10000); return [[d,1],[m,1],[s,10000]]; }
+function exifDate(d){ const p=n=>String(n).padStart(2,'0'); return `${d.getFullYear()}:${p(d.getMonth()+1)}:${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; }
+function buildExif(meta){
+  if (typeof piexif === 'undefined') return null;
+  const zeroth = {}, exif = {}, gps = {};
+  const G = piexif.GPSIFD, I = piexif.ImageIFD, X = piexif.ExifIFD;
+  const d = new Date(meta.time);
+  zeroth[I.ImageDescription] = `${meta.project} | ${meta.date} | ${meta.utmText}${meta.note ? ' | ' + meta.note : ''}`.replace(/[^\x20-\x7E]/g, c => ({'æ':'ae','ø':'o','å':'a','Æ':'AE','Ø':'O','Å':'A'}[c] || '?'));
+  zeroth[I.Software] = 'Befaring prototype';
+  zeroth[I.DateTime] = exifDate(d);
+  exif[X.DateTimeOriginal] = exifDate(d);
+  if (meta.lat != null){
+    gps[G.GPSVersionID] = [2,3,0,0];
+    gps[G.GPSLatitudeRef] = meta.lat >= 0 ? 'N' : 'S'; gps[G.GPSLatitude] = dms(meta.lat);
+    gps[G.GPSLongitudeRef] = meta.lon >= 0 ? 'E' : 'W'; gps[G.GPSLongitude] = dms(meta.lon);
+    if (meta.hNN != null){ gps[G.GPSAltitudeRef] = meta.hNN < 0 ? 1 : 0; gps[G.GPSAltitude] = [Math.round(Math.abs(meta.hNN)*100),100]; }
+    gps[G.GPSMapDatum] = 'WGS-84';
+    if (G.GPSHPositioningError != null && meta.acc != null) gps[G.GPSHPositioningError] = [Math.round(meta.acc*100),100];
+  }
+  if (meta.headTrue != null){
+    gps[G.GPSImgDirectionRef] = 'T'; gps[G.GPSImgDirection] = [Math.round(meta.headTrue*100),100];
+  }
+  try { return piexif.dump({'0th':zeroth, 'Exif':exif, 'GPS':gps}); } catch { return null; }
+}
+function blobToDataURL(b){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(b); }); }
+async function dataURLToBlob(u){ return (await fetch(u)).blob(); }
+function canvasToBlob(c, q=0.92){ return new Promise(res => c.toBlob(res, 'image/jpeg', q)); }
+
+/* ---------- capture ---------- */
+function snapshotMeta(){
+  const project = slug($('proj').value) || 'Uten prosjekt';
+  const date = $('bdate').value || today();
+  const p = live.pos, hd = headings();
+  const u = p ? toUTM32(p.lat, p.lon) : null;
+  const hNN = nnHeight(p);
+  return {
+    project, date, time: Date.now(), note: $('note').value.trim(),
+    lat: p ? p.lat : null, lon: p ? p.lon : null, acc: p ? p.acc : null,
+    E: u ? u.E : null, N: u ? u.N : null, hNN, altAcc: p ? p.altAcc : null,
+    headGrid: hd ? hd.grid : null, headTrue: hd ? hd.tru : null, headMag: hd ? hd.mag : null,
+    conv: hd ? hd.conv : null, decl: Number(settings.decl), cmpSrc: hd ? live.cmpSrc : null,
+    utmText: u ? `EUREF89 UTM32 E ${u.E.toFixed(1)} N ${u.N.toFixed(1)}${hNN!=null?' H(NN2000,ca) '+hNN.toFixed(1):''}` : 'uten posisjon'
+  };
+}
+async function nextSeq(project, date){
+  const all = await dbAll(); return all.filter(r => r.project === project && r.date === date).length + 1;
+}
+async function saveShot(canvas, meta){
+  meta.seq = await nextSeq(meta.project, meta.date);
+  const dirPart = meta.headGrid != null ? `_R${String(Math.round(meta.headGrid)%360).padStart(3,'0')}` : '';
+  meta.filename = `${fileSlug(meta.project)||'Prosjekt'}_${meta.date.replace(/-/g,'')}_${String(meta.seq).padStart(3,'0')}${dirPart}.jpg`;
+  let blob = await canvasToBlob(canvas);
+  const ex = buildExif(meta);
+  if (ex){ try { blob = await dataURLToBlob(piexif.insert(ex, await blobToDataURL(blob))); } catch {} }
+  const tc = document.createElement('canvas'); const s = 200/Math.max(canvas.width, canvas.height);
+  tc.width = Math.round(canvas.width*s); tc.height = Math.round(canvas.height*s);
+  tc.getContext('2d').drawImage(canvas, 0, 0, tc.width, tc.height);
+  const thumb = tc.toDataURL('image/jpeg', 0.7);
+  const rec = Object.assign({}, meta, { id: meta.time + '-' + Math.random().toString(36).slice(2,7), group: meta.project + '|' + meta.date, blob, thumb });
+  try { await dbPut(rec); } catch { memStore.push(rec); toast('Lagret bare midlertidig. Eksporter før du lukker siden.'); }
+  rememberProject(meta.project);
+  $('note').value = '';
+  const pos = meta.E != null ? `Ø ${fmt(meta.E,1)}  N ${fmt(meta.N,1)}` : 'uten posisjon';
+  const dir = meta.headGrid != null ? `${Math.round(meta.headGrid)}° ${dirName(meta.headGrid)}` : 'uten retning';
+  $('lastshot').innerHTML = '';
+  const b = document.createElement('b'); b.textContent = meta.filename;
+  $('lastshot').append('Sist lagret: ', b, ` · ${pos} · ${dir}`);
+  updateCount();
+}
+$('shutter').addEventListener('click', async () => {
+  const meta = snapshotMeta();   // lock direction and position at the moment of the tap
+  if (stream){
+    const v = $('video'); if (!v.videoWidth) { toast('Kameraet starter fortsatt.'); return; }
+    const c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d').drawImage(v, 0, 0);
+    const f = $('flash'); f.classList.remove('on'); void f.offsetWidth; f.classList.add('on');
+    if (navigator.vibrate) navigator.vibrate(30);
+    await saveShot(c, meta);
+  } else {
+    pendingMeta = meta; $('fileCam').value = ''; $('fileCam').click();
+  }
+});
+let pendingMeta = null;
+$('fileCam').addEventListener('change', async e => {
+  const file = e.target.files && e.target.files[0]; if (!file || !pendingMeta) return;
+  try{
+    const bmp = await createImageBitmap(file, { imageOrientation:'from-image' });
+    const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    await saveShot(c, pendingMeta);
+  }catch{ toast('Bildet kunne ikke leses. Prøv igjen.'); }
+  pendingMeta = null;
+});
+
+/* ---------- list view ---------- */
+async function updateCount(){ const n = (await dbAll()).length; $('tabList').textContent = n ? `Bilder (${n})` : 'Bilder'; }
+function arrowSvg(deg){
+  const ns='http://www.w3.org/2000/svg', s=document.createElementNS(ns,'svg'); s.setAttribute('viewBox','0 0 30 30'); s.setAttribute('class','arrow');
+  s.setAttribute('aria-label', deg==null?'Uten retning':`Retning ${Math.round(deg)} grader`);
+  const c=document.createElementNS(ns,'circle'); c.setAttribute('cx',15); c.setAttribute('cy',15); c.setAttribute('r',13); c.setAttribute('fill','none'); c.setAttribute('stroke','var(--line)'); c.setAttribute('stroke-width',1.5); s.appendChild(c);
+  if (deg != null){ const p=document.createElementNS(ns,'path'); p.setAttribute('d','M15 4 L20 18 L15 15 L10 18 Z'); p.setAttribute('fill','var(--signal)'); p.setAttribute('transform',`rotate(${deg} 15 15)`); s.appendChild(p); }
+  return s;
+}
+async function renderList(){
+  const all = (await dbAll()).sort((a,b) => a.time - b.time);
+  const host = $('groups'); host.innerHTML = '';
+  if (!all.length){ const e=document.createElement('div'); e.className='empty'; e.textContent='Ingen bilder ennå. Velg prosjekt og dato under «Ta bilder» og start befaringen.'; host.appendChild(e); return; }
+  const groups = new Map();
+  all.forEach(r => { if (!groups.has(r.group)) groups.set(r.group, []); groups.get(r.group).push(r); });
+  [...groups.entries()].reverse().forEach(([key, recs]) => {
+    const [project, date] = key.split('|');
+    const g = document.createElement('section'); g.className = 'group';
+    const hd = document.createElement('header');
+    const left = document.createElement('div');
+    const path = document.createElement('div'); path.className='path'; path.textContent = `${project} / ${date}`;
+    const cnt = document.createElement('div'); cnt.className='count'; cnt.textContent = `${recs.length} bilde${recs.length===1?'':'r'}`;
+    left.append(path, cnt);
+    const ex = document.createElement('button'); ex.className='btn primary small'; ex.textContent='Eksporter mappe';
+    ex.addEventListener('click', () => exportGroup(project, date, recs));
+    hd.append(left, ex); g.appendChild(hd);
+    recs.forEach(r => {
+      const row = document.createElement('div'); row.className='shot';
+      const img = document.createElement('img'); img.src = r.thumb; img.alt = r.filename;
+      const info = document.createElement('div');
+      const fn = document.createElement('div'); fn.className='fn'; fn.textContent = r.filename;
+      const meta = document.createElement('div'); meta.className='meta';
+      meta.textContent = (r.E!=null ? `Ø ${fmt(r.E,1)}  N ${fmt(r.N,1)}  ±${Math.round(r.acc)} m` : 'Uten posisjon') +
+        (r.headGrid!=null ? ` · ${Math.round(r.headGrid)}° ${dirName(r.headGrid)}` : ' · uten retning');
+      info.append(fn, meta);
+      if (r.note){ const n=document.createElement('div'); n.className='note'; n.textContent=r.note; info.appendChild(n); }
+      const right = document.createElement('div'); right.style.display='grid'; right.style.justifyItems='center'; right.style.gap='6px';
+      const del = document.createElement('button'); del.className='btn small danger'; del.textContent='Slett';
+      del.addEventListener('click', async () => { if (confirm(`Slette ${r.filename}?`)) { await dbDel(r.id); renderList(); updateCount(); } });
+      right.append(arrowSvg(r.headGrid), del);
+      row.append(img, info, right); g.appendChild(row);
+    });
+    host.appendChild(g);
+  });
+}
+
+/* ---------- export ---------- */
+const csvNum = (x, d) => x == null ? '' : x.toFixed(d).replace('.', ',');
+const csvTxt = s => `"${String(s ?? '').replace(/"/g,'""')}"`;
+function buildCsv(recs){
+  const head = ['Filnavn','Prosjekt','Befaringsdato','Tidspunkt','Ost_EUREF89_UTM32','Nord_EUREF89_UTM32','Hoyde_NN2000_ca','Noyaktighet_m','Retning_kartnord','Retning_geografisk','Retning_magnetisk','Himmelretning','Misvisning','Meridiankonvergens','Kompasskilde','Merknad','Breddegrad','Lengdegrad'];
+  const rows = recs.map(r => [csvTxt(r.filename), csvTxt(r.project), r.date, new Date(r.time).toLocaleString('nb-NO'),
+    csvNum(r.E,2), csvNum(r.N,2), csvNum(r.hNN,1), csvNum(r.acc,1), csvNum(r.headGrid,1), csvNum(r.headTrue,1), csvNum(r.headMag,1),
+    r.headGrid!=null?dirName(r.headGrid):'', csvNum(r.decl,1), csvNum(r.conv,2), csvTxt(r.cmpSrc||''), csvTxt(r.note), csvNum(r.lat,7), csvNum(r.lon,7)].join(';'));
+  return '\uFEFF' + head.join(';') + '\r\n' + rows.join('\r\n') + '\r\n';
+}
+function buildGeoJson(recs){
+  return JSON.stringify({ type:'FeatureCollection', name:'befaringslogg',
+    crs:{ type:'name', properties:{ name:'urn:ogc:def:crs:EPSG::25832' } },
+    features: recs.filter(r => r.E != null).map(r => ({ type:'Feature',
+      geometry:{ type:'Point', coordinates:[+r.E.toFixed(2), +r.N.toFixed(2)] },
+      properties:{ filnavn:r.filename, bilde:r.filename, prosjekt:r.project, dato:r.date, tidspunkt:new Date(r.time).toISOString(),
+        hoyde_nn2000_ca: r.hNN!=null?+r.hNN.toFixed(1):null, noyaktighet_m: r.acc!=null?+r.acc.toFixed(1):null,
+        retning_kartnord: r.headGrid!=null?+r.headGrid.toFixed(1):null, retning_geografisk: r.headTrue!=null?+r.headTrue.toFixed(1):null,
+        merknad: r.note||'' } })) }, null, 1);
+}
+async function exportGroup(project, date, recs){
+  if (typeof JSZip === 'undefined'){ toast('Eksport er ikke tilgjengelig: zip-biblioteket lastet ikke.'); return; }
+  const zip = new JSZip();
+  const folder = zip.folder(slug(project)).folder(date);
+  recs.forEach(r => folder.file(r.filename, r.blob));
+  folder.file('befaringslogg.csv', buildCsv(recs));
+  folder.file('befaringslogg.geojson', buildGeoJson(recs));
+  const blob = await zip.generateAsync({ type:'blob' });
+  const filename = `Befaring_${fileSlug(project)||'Prosjekt'}_${date}.zip`;
+  const file = new File([blob], filename, { type:'application/zip' });
+  if (navigator.canShare && navigator.canShare({ files:[file] })){
+    try { await navigator.share({ files:[file], title: filename }); toast('Eksportert: ' + filename); }
+    catch(err){ if (err && err.name === 'AbortError') return; downloadBlob(blob, filename); }
+    return;
+  }
+  downloadBlob(blob, filename);
+}
+function downloadBlob(blob, filename){
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ---------- settings ---------- */
+[['sDecl','decl'],['sCal','cal'],['sGeoid','geoid'],['sAlt','alt']].forEach(([id,key]) => {
+  const el = $(id); el.value = settings[key];
+  el.addEventListener('change', () => { settings[key] = el.type === 'number' ? (parseFloat(el.value) || 0) : el.value; ls.set('bef.settings', settings); });
+});
+
+/* ---------- tabs + toast ---------- */
+document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach(x => x.setAttribute('aria-selected', x === b ? 'true' : 'false'));
+  ['shoot','list','settings'].forEach(v => $('view-' + v).hidden = v !== b.dataset.view);
+  if (b.dataset.view === 'list') renderList();
+  window.scrollTo(0,0);
+}));
+let toastT; function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'), 3200); }
+
+(async () => { idb = await openDb(); updateCount(); })();
+
+/* ---------- PWA: offline, install, persistent storage ---------- */
+if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')){
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+const standalone = matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+if (standalone) $('installText').textContent = 'Appen er installert på denne telefonen.';
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); installEvt = e; $('installBtn').hidden = false; });
+$('installBtn').addEventListener('click', async () => { if (!installEvt) return; installEvt.prompt(); await installEvt.userChoice; installEvt = null; $('installBtn').hidden = true; });
+(async () => {
+  try{
+    if (navigator.storage && navigator.storage.persist){
+      const ok = await navigator.storage.persisted() || await navigator.storage.persist();
+      $('storageText').textContent = ok
+        ? 'Bildene er lagret permanent på telefonen og slettes ikke automatisk av nettleseren.'
+        : 'Nettleseren kan slette lagrede bilder etter en tid uten bruk. Installer appen og eksporter etter hver befaring.';
+    }
+  }catch{}
+})();
+})();
+</script>
+</body>
+</html>

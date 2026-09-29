@@ -1,0 +1,17 @@
+{
+  "name": "Befaring – foto med retning og UTM32",
+  "short_name": "Befaring",
+  "description": "Befaringsfoto med retning og EUREF89 UTM32-koordinater, sortert på prosjekt og dato.",
+  "lang": "nb",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0E2830",
+  "theme_color": "#0E2830",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
