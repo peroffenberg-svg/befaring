@@ -64,7 +64,27 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
 .banner b{font-weight:600}
 
 /* viewfinder */
-.vf{position:relative;background:var(--vf);border-radius:16px;overflow:hidden;aspect-ratio:3/4;max-height:40vh;width:100%}
+.jobline{display:flex;align-items:center;gap:8px;width:100%;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:9px 12px;margin-bottom:10px;text-align:left}
+.jobline .jt{font-weight:600;font-size:17px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.jobline .jd{font-family:var(--num);font-weight:600;color:var(--muted);flex:none}
+.jobline svg{width:18px;height:18px;color:var(--muted);flex:none}
+.jobline.empty{border-color:var(--signal)} .jobline.empty .jt{color:var(--signal)}
+.vf{position:relative;background:var(--vf);border-radius:16px;overflow:hidden;aspect-ratio:3/4;width:100%;margin:0 auto;
+  max-height:calc(100vh - 390px - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px));min-height:260px}
+.qpill{position:absolute;left:10px;bottom:10px;display:inline-flex;align-items:center;gap:7px;max-width:calc(100% - 20px);padding:7px 12px;border-radius:99px;border:0;background:rgba(6,18,22,.74);color:#fff;font-weight:600;font-size:14px;text-align:left}
+.qpill i{width:9px;height:9px;border-radius:50%;background:#5CC08A;flex:none}
+.qpill.warn{background:rgba(110,72,6,.9)} .qpill.warn i{background:#FFD166}
+.qpill.bad{background:rgba(140,25,20,.9)} .qpill.bad i{background:#FFB4AB}
+.shootbar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;margin-top:12px}
+.lastbtn{justify-self:start;width:62px;height:62px;border-radius:12px;border:2px solid var(--line);background:var(--surface);padding:0;overflow:hidden;font-size:11px;line-height:1.2;color:var(--muted)}
+.lastbtn img{width:100%;height:100%;object-fit:cover;display:block}
+.lastbtn.warn{border-color:var(--warn)}
+.lastbtn.pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(.8)}60%{transform:scale(1.08)}100%{transform:scale(1)}}
+@media (prefers-reduced-motion: reduce){.lastbtn.pop{animation:none}}
+.shotcount{justify-self:end;text-align:right;line-height:1.15}
+.shotcount b{font-family:var(--num);font-size:26px;display:block}
+.shotcount span{font-size:12px;color:var(--muted)}
 .vf video{width:100%;height:100%;object-fit:cover;display:block}
 .vf .placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
 .vf .placeholder p{margin:0;max-width:30ch;font-size:15px;color:#9FB6BC}
@@ -99,7 +119,7 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
 .qbar span{font-weight:500;color:var(--muted)}
 
 /* categories */
-.cats{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.cats{display:flex;gap:6px;overflow-x:auto;padding:12px 0 2px;scrollbar-width:none}
 .cats::-webkit-scrollbar{display:none}
 .cat{flex:none;border:1.5px solid var(--line);background:var(--surface);border-radius:99px;padding:7px 13px;font-weight:600;font-size:14px}
 .cat[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
@@ -191,21 +211,10 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
 
   <!-- ============ TA BILDER ============ -->
   <section id="view-shoot">
-    <div class="banner" id="unexpBanner" hidden>
-      <span id="unexpText"></span>
-      <button class="btn small" data-goto="list">Til bilder</button>
-    </div>
-    <div class="job">
-      <div>
-        <label class="lbl" for="proj">Prosjekt</label>
-        <input class="inp" id="proj" list="projlist" placeholder="f.eks. 1234 Nordbergveien" autocomplete="off">
-        <datalist id="projlist"></datalist>
-      </div>
-      <div>
-        <label class="lbl" for="bdate">Befaringsdato</label>
-        <input class="inp" id="bdate" type="date">
-      </div>
-    </div>
+    <button class="jobline" id="jobBtn" aria-label="Endre prosjekt og dato">
+      <span class="jt" id="jobText">Velg prosjekt</span><span class="jd" id="jobDate"></span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3z"/></svg>
+    </button>
 
     <div class="vf">
       <video id="video" playsinline muted autoplay hidden></video>
@@ -216,20 +225,8 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
       <div class="reticle" id="reticle" hidden></div>
       <div class="tape"><canvas id="tape"></canvas></div>
       <div class="flash" id="flash"></div>
+      <button class="qpill" id="qpill" hidden aria-live="polite"><i></i><span id="qtext"></span></button>
     </div>
-
-    <dl class="readout">
-      <div><dt>Øst (UTM32)</dt><dd id="rE">–</dd></div>
-      <div><dt>Nord (UTM32)</dt><dd id="rN">–</dd></div>
-      <div><dt>Nøyaktighet</dt><dd id="rAcc">–</dd></div>
-      <div class="wide"><dt>Retning</dt><dd id="rDir">Kompass ikke startet</dd></div>
-    </dl>
-    <div class="chips">
-      <span class="chip" id="cGps"><i></i><span>GPS av</span></span>
-      <span class="chip" id="cCmp"><i></i><span>Kompass av</span></span>
-      <span class="chip" id="cCam"><i></i><span>Kamera av</span></span>
-    </div>
-    <div class="qbar" id="qbar"><i></i><div id="qtext">Start befaring for å ta bilder</div></div>
 
     <div class="cats" id="cats" role="group" aria-label="Kategori"></div>
     <div class="row2">
@@ -247,9 +244,12 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
       </div>
     </div>
 
-    <div class="shoot"><button class="shutter" id="shutter" aria-label="Ta bilde">Ta bilde</button></div>
+    <div class="shootbar">
+      <button class="lastbtn" id="lastBtn" aria-label="Rediger siste bilde" disabled><img id="lastImg" alt="" hidden><span id="lastEmpty">Ingen<br>bilder</span></button>
+      <button class="shutter" id="shutter" aria-label="Ta bilde">Ta bilde</button>
+      <div class="shotcount"><b id="shotCount">0</b><span>bilder i denne<br>befaringen</span></div>
+    </div>
     <input id="fileCam" type="file" accept="image/*" capture="environment" hidden>
-    <div class="lastshot" id="lastshot"></div>
   </section>
 
   <!-- ============ KART ============ -->
@@ -308,8 +308,8 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
       </select>
     </div>
     <div class="field">
-      <label for="sStamp">Stempel i eksporterte bilder</label>
-      <p>Tegnes inn når bildene eksporteres, med retning og data slik de er etter eventuell redigering.</p>
+      <label for="sStamp">Stempel i bildet</label>
+      <p>Tegnes inn i bildet når det tas. Retter du retning, posisjon eller merknad i etterkant, tegnes stempelet på nytt.</p>
       <select id="sStamp">
         <option value="kompass">Kompass øverst</option>
         <option value="begge">Kompass øverst og info nederst</option>
@@ -357,6 +357,29 @@ h2{font-size:22px;font-weight:600;margin:6px 0 12px;letter-spacing:-.01em}
       <button class="btn" id="editCancel">Avbryt</button>
       <button class="btn primary" id="editSave">Lagre</button>
     </div>
+  </div>
+</div>
+
+<!-- ============ ARK: befaring ============ -->
+<div class="sheet" id="jobSheet" hidden role="dialog" aria-modal="true" aria-labelledby="jobTitle">
+  <div class="panel">
+    <h3 id="jobTitle">Befaring</h3>
+    <div class="grid">
+      <div>
+        <label class="lbl" for="proj">Prosjekt</label>
+        <input class="inp" id="proj" list="projlist" placeholder="f.eks. 1234 Nordbergveien" autocomplete="off">
+        <datalist id="projlist"></datalist>
+      </div>
+      <div>
+        <label class="lbl" for="bdate">Befaringsdato</label>
+        <input class="inp" id="bdate" type="date">
+      </div>
+      <div class="banner" id="unexpBanner" hidden>
+        <span id="unexpText"></span>
+        <button class="btn small" data-goto="list">Til bilder</button>
+      </div>
+    </div>
+    <div class="actions"><button class="btn primary wide" id="jobDone">Ferdig</button></div>
   </div>
 </div>
 
@@ -539,15 +562,22 @@ async function startCamera(){
     setChip('cCam','warn','Telefonens kamera');
   }
 }
-function setChip(id, state, text){ const c = $(id); c.className = 'chip ' + state; c.querySelector('span').textContent = text; }
+const status = {};
+function setChip(id, state, text){ status[id] = { state, text }; }
 let wakeLock = null;
 async function keepAwake(){ try{ if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); }catch{} }
-$('startBtn').addEventListener('click', async () => {
+let pendingStart = false;
+async function startAll(){
+  if (started) return;
   $('startBtn').disabled = true;
   await startCompass();
   startGps();
   await startCamera();
-  started = true; keepAwake();
+  started = true; keepAwake(); $('qpill').hidden = false;
+}
+$('startBtn').addEventListener('click', () => {
+  if (!$('proj').value.trim()){ pendingStart = true; openJob(); return; }
+  startAll();
 });
 document.addEventListener('visibilitychange', async () => {
   if (document.visibilityState !== 'visible' || !started) return;
@@ -557,14 +587,14 @@ document.addEventListener('visibilitychange', async () => {
 
 /* ======================= kvalitet ======================= */
 function qualityNow(){
-  if (!started) return { level:'none', text:'Start befaring for å ta bilder', sub:'' };
+  if (!started) return { level:'none', text:'' };
   const p = avgPosition(), cs = compassState(), lim = Number(settings.accLimit), issues = [];
-  if (!p) issues.push('venter på GPS');
-  else if (p.acc > lim) issues.push(`GPS ±${Math.round(p.acc)} m`);
-  if (cs === 'ingen') issues.push('uten kompass');
-  else if (cs === 'ustabil') issues.push('urolig kompass – hold stille, unngå stål');
-  if (!issues.length) return { level:'ok', text:'Klar', sub:`±${Math.round(p.acc)} m · kompass stabilt` };
-  return { level:'warn', text:'Usikker', sub: issues.join(' · ') + ' – bildet merkes usikkert' };
+  if (!p) issues.push('Venter på GPS');
+  else if (p.acc > lim) issues.push(`Svak GPS ±${Math.round(p.acc)} m`);
+  if (cs === 'ingen') issues.push('Uten kompass');
+  else if (cs === 'ustabil') issues.push('Urolig kompass');
+  if (!issues.length) return { level:'ok', text:`Klar · ±${Math.round(p.acc)} m` };
+  return { level:'warn', text: issues.join(' · ') };
 }
 function recQuality(r){
   const lim = Number(r.accLimit || settings.accLimit);
@@ -635,14 +665,8 @@ let lastQ = 0;
 function tick(){
   if (!$('view-shoot').hidden){
     drawTape();
-    if (live.pos){
-      const u = toUTM32(live.pos.lat, live.pos.lon);
-      $('rE').textContent = fmt(u.E, 1); $('rN').textContent = fmt(u.N, 1);
-      $('rAcc').textContent = `±${Math.round(live.pos.acc)} m`;
-    }
     const hd = headings();
     if (hd){
-      $('rDir').textContent = `${Math.round(hd.grid)}° ${dirName(hd.grid)} kartnord`;
       const cs = compassState();
       setChip('cCmp', cs === 'god' ? 'ok' : 'warn', cs === 'god' ? live.cmpSrc : cs === 'ustabil' ? 'Kompass urolig' : 'Kompass venter');
     }
@@ -651,9 +675,13 @@ function tick(){
   if (now - lastQ > 300){
     lastQ = now;
     const q = qualityNow();
-    $('qbar').className = 'qbar ' + (q.level === 'none' ? '' : q.level);
-    $('qtext').innerHTML = ''; const b = document.createElement('b'); b.textContent = q.text; $('qtext').append(b);
-    if (q.sub){ const s = document.createElement('span'); s.textContent = ' · ' + q.sub; $('qtext').append(s); }
+    if (q.level !== 'none'){
+      const bad = ['cCam','cGps','cCmp'].map(k => status[k]).find(x => x && x.state === 'bad');
+      const cls = bad ? 'bad' : q.level === 'ok' ? '' : 'warn';
+      const txt = bad ? bad.text + ' – trykk for hjelp' : q.text;
+      $('qpill').className = 'qpill ' + cls;
+      if ($('qtext').textContent !== txt) $('qtext').textContent = txt;
+    }
     $('shutter').classList.toggle('warn', q.level === 'warn');
     const hd = headings(); $('calNow').textContent = hd ? `${Math.round(hd.grid)}°` : '–';
   }
@@ -742,26 +770,58 @@ function snapshotMeta(){
     decl: Number(settings.decl), cal: Number(settings.cal), cmpSrc: live.cmpSrc, cmpQ: cs, accLimit: Number(settings.accLimit)
   };
 }
+/* Stempel tegnes inn når bildet tas. Rene striper øverst/nederst lagres,
+   slik at stempelet kan tegnes på nytt etter redigering uten å lagre bildet to ganger. */
+const stripH = w => ({ top: Math.ceil(58 * w / 520), bot: Math.ceil(46 * w / 520) });
+async function cutStrips(c){
+  const { top, bot } = stripH(c.width), out = {};
+  for (const [k, y, h] of [['top', 0, top], ['bot', c.height - bot, bot]]){
+    const s = document.createElement('canvas'); s.width = c.width; s.height = h;
+    s.getContext('2d').drawImage(c, 0, y, c.width, h, 0, 0, c.width, h);
+    out[k] = await canvasToBlob(s, 0.92);
+  }
+  return out;
+}
+async function pasteStrips(c, strips){
+  if (!strips) return;
+  const ctx = c.getContext('2d');
+  if (strips.top){ const b = await createImageBitmap(strips.top); ctx.drawImage(b, 0, 0); if (b.close) b.close(); }
+  if (strips.bot){ const b = await createImageBitmap(strips.bot); ctx.drawImage(b, 0, c.height - b.height); if (b.close) b.close(); }
+}
+async function restamp(r){
+  if (!r.strips) return false;
+  const bmp = await createImageBitmap(r.blob);
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  c.getContext('2d').drawImage(bmp, 0, 0); if (bmp.close) bmp.close();
+  await pasteStrips(c, r.strips);
+  stampImage(c, r);
+  const size = parseInt(settings.size, 10) || 0;
+  r.blob = await canvasToBlob(c, size ? 0.86 : 0.92);
+  r.sizeBytes = r.blob.size; r.stampMode = settings.stamp;
+  const tc = scaleCanvas(c, 240); r.thumb = tc.toDataURL('image/jpeg', 0.72);
+  return true;
+}
 async function saveShot(canvas, meta){
   const all = await dbAll();
   meta.seq = all.filter(r => r.project === meta.project && r.date === meta.date).reduce((m, r) => Math.max(m, r.seq || 0), 0) + 1;
   const size = parseInt(settings.size, 10) || 0;
-  const c = scaleCanvas(canvas, size);
+  let c = scaleCanvas(canvas, size);
+  if (c === canvas){ const cc = document.createElement('canvas'); cc.width = c.width; cc.height = c.height; cc.getContext('2d').drawImage(c, 0, 0); c = cc; }
+  const strips = await cutStrips(c);
+  stampImage(c, meta);
   const blob = await canvasToBlob(c, size ? 0.86 : 0.92);
   const tc = scaleCanvas(c, 240); const thumb = (tc === c ? c : tc).toDataURL('image/jpeg', 0.72);
   const rec = Object.assign({}, meta, {
     id: meta.time + '-' + Math.random().toString(36).slice(2,7), group: meta.project + '|' + meta.date,
-    blob, clean: true, thumb, w: c.width, h: c.height, sizeBytes: blob.size, exportedAt: null, editedAt: null
+    blob, strips, stampMode: settings.stamp, thumb, w: c.width, h: c.height, sizeBytes: blob.size, exportedAt: null, editedAt: null
   });
   try { await dbPut(rec); } catch { memStore.push(rec); toast('Lagret bare midlertidig. Eksporter før du lukker appen.'); }
   rememberProject(meta.project);
   $('note').value = '';
   const q = recQuality(rec);
-  $('lastshot').innerHTML = '';
-  const b = document.createElement('b'); b.textContent = `${nr3(rec)}${rec.cat ? ' ' + rec.cat : ''}${rec.objId ? ' ' + rec.objId : ''}`;
-  $('lastshot').append('Lagret ', b, ` · ${rec.headGrid != null ? Math.round(rec.headGrid) + '° ' + dirName(rec.headGrid) : 'uten retning'} · ${q.label.toLowerCase()}${q.why && q.key !== 'god' ? ' (' + q.why + ')' : ''} · ${fmtMB(blob.size)}`);
   if (q.key !== 'god') toast(`Bilde ${nr3(rec)} merket ${q.label.toLowerCase()}: ${q.why}`);
-  refreshCounts();
+  await refreshCounts();
+  const lb = $('lastBtn'); lb.classList.remove('pop'); void lb.offsetWidth; lb.classList.add('pop');
 }
 let pendingMeta = null;
 $('shutter').addEventListener('click', async () => {
@@ -845,8 +905,46 @@ async function refreshCounts(){
   const ng = new Set(others.map(r => r.group)).size;
   $('unexpBanner').hidden = !others.length;
   if (others.length) $('unexpText').innerHTML = `<b>${others.length} bilde${others.length === 1 ? '' : 'r'}</b> fra ${ng} befaring${ng === 1 ? '' : 'er'} er ikke eksportert.`;
+  // prosjektlinje, teller og siste bilde
+  const pv = $('proj').value.trim();
+  $('jobText').textContent = pv || 'Velg prosjekt';
+  $('jobBtn').classList.toggle('empty', !pv);
+  $('jobDate').textContent = dateNo($('bdate').value || today()).slice(0, 5);
+  const mine = all.filter(r => r.group === cg).sort((a,b) => a.seq - b.seq);
+  $('shotCount').textContent = mine.length;
+  const last = mine[mine.length - 1];
+  lastId = last ? last.id : null;
+  $('lastBtn').disabled = !last;
+  $('lastImg').hidden = !last; $('lastEmpty').hidden = !!last;
+  if (last){ $('lastImg').src = last.thumb; $('lastBtn').classList.toggle('warn', recQuality(last).key !== 'god'); }
 }
-document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => showView(b.dataset.goto)));
+let lastId = null;
+$('lastBtn').addEventListener('click', () => { if (lastId) openEdit(lastId); });
+$('qpill').addEventListener('click', () => {
+  const g = status.cGps, c = status.cCmp, k = status.cCam;
+  const tips = [];
+  if (g && g.state === 'bad') tips.push('Gi appen tilgang til posisjon i telefonens innstillinger.');
+  if (c && c.state === 'bad') tips.push('Kompasset trenger tilgang til bevegelse og retning. På iPhone: last appen på nytt og trykk «Tillat».');
+  if (c && /urolig/i.test(c.text)) tips.push('Hold telefonen i ro og gå bort fra kumlokk, spunt og biler.');
+  toast([g, c, k].filter(Boolean).map(x => x.text).join(' · ') + (tips.length ? '. ' + tips.join(' ') : ''), 6000);
+});
+
+/* ======================= prosjekt og dato (ark) ======================= */
+function openJob(){ refreshCounts(); $('jobSheet').hidden = false; }
+function closeJob(){ $('jobSheet').hidden = true; refreshCounts(); }
+$('jobBtn').addEventListener('click', () => { pendingStart = false; openJob(); });
+$('jobDone').addEventListener('click', () => {
+  if (pendingStart && !$('proj').value.trim()){ $('proj').focus(); toast('Skriv inn prosjekt, eller trykk utenfor for å fortsette uten.'); return; }
+  closeJob();
+  if (pendingStart){ pendingStart = false; startAll(); }
+});
+$('jobSheet').addEventListener('click', e => {
+  if (e.target !== $('jobSheet')) return;
+  closeJob();
+  if (pendingStart){ pendingStart = false; startAll(); }
+});
+$('proj').addEventListener('input', () => { $('jobText').textContent = $('proj').value.trim() || 'Velg prosjekt'; });
+document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => { $('jobSheet').hidden = true; pendingStart = false; showView(b.dataset.goto); }));
 ['proj','bdate'].forEach(id => $(id).addEventListener('change', refreshCounts));
 
 /* ======================= bildeliste ======================= */
@@ -937,7 +1035,7 @@ $('editSave').addEventListener('click', async () => {
     r.headGrid = g; r.headTrue = norm360(g + conv); r.headMag = norm360(r.headTrue - (r.decl ?? settings.decl));
     r.headEdited = true; changed = true;
   }
-  if (changed){ r.editedAt = Date.now(); await dbPut(r); toast(`Bilde ${nr3(r)} oppdatert`); }
+  if (changed){ r.editedAt = Date.now(); await restamp(r); await dbPut(r); toast(`Bilde ${nr3(r)} oppdatert`); }
   closeEdit(); afterChange();
 });
 $('editDel').addEventListener('click', async () => {
@@ -1037,11 +1135,16 @@ async function openMap(groupKey, moveId){
 $('mapGroup').addEventListener('change', async () => { mapGroupKey = $('mapGroup').value; moving = null; $('movebar').hidden = true; await renderMap(true); });
 $('mapMe').addEventListener('click', () => {
   if (!map) return;
-  if (live.pos){ map.setView([live.pos.lat, live.pos.lon], 18); return; }
+  const showMe = f => {
+    const u = toUTM32(f.lat, f.lon);
+    map.setView([f.lat, f.lon], 18);
+    L.popup().setLatLng([f.lat, f.lon]).setContent(`<b>Min posisjon</b><br>Ø ${fmt(u.E,1)}<br>N ${fmt(u.N,1)}<br>±${Math.round(f.acc)} m`).openOn(map);
+  };
+  if (live.pos){ showMe(live.pos); return; }
   if (!navigator.geolocation){ toast('Posisjon er ikke tilgjengelig.'); return; }
   navigator.geolocation.getCurrentPosition(p => {
     const f = { lat:p.coords.latitude, lon:p.coords.longitude, acc:p.coords.accuracy, t:Date.now() };
-    onLivePosition(f); map.setView([f.lat, f.lon], 18);
+    onLivePosition(f); showMe(f);
   }, () => toast('Fikk ikke posisjon. Sjekk at appen har tilgang til posisjon.'), { enableHighAccuracy:true, timeout:15000 });
 });
 $('moveCancel').addEventListener('click', async () => { moving = null; $('movebar').hidden = true; await renderMap(false); });
@@ -1052,6 +1155,7 @@ $('moveSave').addEventListener('click', async () => {
   r.lat = ll.lat; r.lon = ll.lng; r.E = u.E; r.N = u.N; r.conv = u.conv; r.posEdited = true;
   if (r.headGrid != null) r.headTrue = norm360(r.headGrid + u.conv);
   r.editedAt = Date.now();
+  await restamp(r);
   await dbPut(r);
   moving = null; $('movebar').hidden = true;
   toast(`Posisjonen til bilde ${nr3(r)} er oppdatert`);
@@ -1088,8 +1192,10 @@ async function finalizeImages(recs, needPdf, progress){
     const bmp = await createImageBitmap(r.blob);
     const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
     c.getContext('2d').drawImage(bmp, 0, 0); if (bmp.close) bmp.close();
-    if (r.clean) stampImage(c, r);
-    let blob = r.clean ? await canvasToBlob(c, 0.9) : r.blob;
+    let redraw = false;
+    if (r.clean){ stampImage(c, r); redraw = true; }                       // bilder fra forrige versjon uten stempel
+    else if (r.strips && r.stampMode !== settings.stamp){ await pasteStrips(c, r.strips); stampImage(c, r); redraw = true; }
+    let blob = redraw ? await canvasToBlob(c, 0.9) : r.blob;
     const ex = buildExif(r);
     if (ex){ try { blob = await dataURLToBlob(piexif.insert(ex, await blobToDataURL(blob))); } catch {} }
     const small = needPdf ? scaleCanvas(c, 1400) : null;
@@ -1281,13 +1387,13 @@ async function buildReport(project, date, finals, info, progress){
   return doc.output('blob');
 }
 /* ---------- AutoCAD / Civil 3D ---------- */
-const DXF_ARROW = 4, DXF_TEXT = 0.8, DXF_CONE = 25;
+const DXF_TEXT = 0.8;
 const dxfStr = s => String(s ?? '').replace(/[^\x20-\x7E]/g, c => '\\U+' + c.charCodeAt(0).toString(16).toUpperCase().padStart(4,'0'));
 function buildDxf(recs, project, date){
   const L = [];
   const intCode = c => (c>=60&&c<=99)||(c>=170&&c<=179)||(c>=270&&c<=289)||(c>=1060&&c<=1071);
   const g = (code, val) => { L.push(String(code), typeof val !== 'number' ? String(val) : intCode(code) ? String(Math.round(val)) : val.toFixed(3)); };
-  const layers = [['BEF_PUNKT',5],['BEF_RETNING',30],['BEF_SIKTSEKTOR',8],['BEF_TEKST',7]];
+  const layers = [['BEF_PUNKT',5],['BEF_TEKST',7]];
   g(0,'SECTION'); g(2,'HEADER'); g(9,'$ACADVER'); g(1,'AC1009'); g(9,'$DWGCODEPAGE'); g(3,'ANSI_1252'); g(0,'ENDSEC');
   g(0,'SECTION'); g(2,'TABLES');
   g(0,'TABLE'); g(2,'LTYPE'); g(70,1); g(0,'LTYPE'); g(2,'CONTINUOUS'); g(70,0); g(3,'Solid line'); g(72,65); g(73,0); g(40,0); g(0,'ENDTAB');
@@ -1298,24 +1404,13 @@ function buildDxf(recs, project, date){
   g(0,'ENDSEC');
   g(0,'SECTION'); g(2,'ENTITIES');
   const link = (file, desc) => { g(1001,'PE_URL'); g(1000,file); g(1002,'{'); g(1000,dxfStr(desc)); g(1002,'{'); g(1071,1); g(1002,'}'); g(1002,'}'); };
-  const line = (layer, x1,y1,x2,y2, file, desc) => { g(0,'LINE'); g(8,layer); g(10,x1); g(20,y1); g(30,0); g(11,x2); g(21,y2); g(31,0); if (file) link(file, desc); };
-  const pt = (az, len, x, y) => [x + len*Math.sin(az*Math.PI/180), y + len*Math.cos(az*Math.PI/180)];
   recs.filter(r => r.E != null).forEach(r => {
     const x = r.E, y = r.N, nr = String(r.seq).padStart(3,'0');
-    const desc = [nr, r.headGrid!=null ? Math.round(r.headGrid)+'° '+dirName(r.headGrid) : '', r.cat, r.objId, r.note].filter(Boolean).join(' ');
+    const desc = [nr, r.cat, r.objId, r.note].filter(Boolean).join(' ');
     g(0,'POINT'); g(8,'BEF_PUNKT'); g(10,x); g(20,y); g(30,0);
     g(0,'CIRCLE'); g(8,'BEF_PUNKT'); g(10,x); g(20,y); g(30,0); g(40,0.4); link(r.fn, desc);
-    if (r.headGrid != null){
-      const a = r.headGrid, tip = pt(a, DXF_ARROW, x, y);
-      line('BEF_RETNING', x, y, tip[0], tip[1], r.fn, desc);
-      const h1 = pt(a+180-20, 0.8, tip[0], tip[1]), h2 = pt(a+180+20, 0.8, tip[0], tip[1]);
-      line('BEF_RETNING', tip[0], tip[1], h1[0], h1[1]); line('BEF_RETNING', tip[0], tip[1], h2[0], h2[1]);
-      const c1 = pt(a-DXF_CONE, DXF_ARROW*0.8, x, y), c2 = pt(a+DXF_CONE, DXF_ARROW*0.8, x, y);
-      line('BEF_SIKTSEKTOR', x, y, c1[0], c1[1]); line('BEF_SIKTSEKTOR', x, y, c2[0], c2[1]);
-    }
-    const lbl = r.headGrid != null ? pt(r.headGrid+180, 1.2, x, y) : [x+0.6, y+0.6];
-    g(0,'TEXT'); g(8,'BEF_TEKST'); g(10,lbl[0]); g(20,lbl[1]); g(30,0); g(40,DXF_TEXT);
-    g(1, dxfStr([nr, r.headGrid != null ? dirName(r.headGrid) : '', r.objId].filter(Boolean).join(' '))); link(r.fn, desc);
+    g(0,'TEXT'); g(8,'BEF_TEKST'); g(10,x+0.6); g(20,y-1.2); g(30,0); g(40,DXF_TEXT);
+    g(1, dxfStr([nr, r.objId].filter(Boolean).join(' '))); link(r.fn, desc);
   });
   g(0,'ENDSEC'); g(0,'EOF');
   return L.join('\r\n') + '\r\n';
@@ -1323,7 +1418,7 @@ function buildDxf(recs, project, date){
 const lspStr = t => '"' + String(t).replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"';
 function buildLisp(recs, project, date){
   const rows = recs.filter(r => r.E != null).map(r => {
-    const az = r.headGrid != null ? r.headGrid + 180 : 45;   // legg bildet bak fotografen, bort fra pilen
+    const az = 45;   // bildet legges opp til høyre for punktet
     const ax = r.E + 2.5*Math.sin(az*Math.PI/180), ay = r.N + 2.5*Math.cos(az*Math.PI/180);
     const sx = ax >= r.E ? 1 : -1, sy = ay >= r.N ? 1 : -1;
     return `    (${lspStr(r.fn)} ${r.E.toFixed(3)} ${r.N.toFixed(3)} ${ax.toFixed(3)} ${ay.toFixed(3)} ${sx} ${sy})`;
@@ -1651,7 +1746,7 @@ function showView(v, groupKey, moveId){
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('.tabs button').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
-document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeEdit(); closeExport(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape'){ closeEdit(); closeExport(); if (!$('jobSheet').hidden) closeJob(); } });
 
 /* ======================= oppstart og PWA ======================= */
 (async () => { idb = await openDb(); refreshCounts(); })();

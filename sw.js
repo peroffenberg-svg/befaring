@@ -1,6 +1,6 @@
 // Befaring service worker: gjør appen tilgjengelig uten nett ute på befaring.
 // Øk VERSION når index.html endres, så får telefonene ny versjon ved neste åpning.
-const VERSION = 'befaring-v5';
+const VERSION = 'befaring-v7';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'
