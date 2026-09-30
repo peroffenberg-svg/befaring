@@ -1,13 +1,16 @@
 // Befaring service worker: gjør appen tilgjengelig uten nett ute på befaring.
 // Øk VERSION når index.html endres, så får telefonene ny versjon ved neste åpning.
-const VERSION = 'befaring-v4';
+const VERSION = 'befaring-v5';
 const SHELL = [
   './', './index.html', './manifest.webmanifest',
   './icons/icon-192.png', './icons/icon-512.png', './icons/apple-touch-icon.png'
 ];
 const LIBS = [
   'https://cdnjs.cloudflare.com/ajax/libs/piexifjs/1.0.6/piexif.min.js',
-  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js'
+  'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css'
 ];
 
 self.addEventListener('install', event => {

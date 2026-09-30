@@ -1,27 +1,43 @@
 # Befaring – web-app
 
-Befaringsfoto med retning (kartnord) og koordinater i EUREF89 UTM32 (EPSG:25832) med omtrentlig NN2000-høyde. Bildene sorteres på prosjekt og befaringsdato og eksporteres som ZIP med mappestrukturen `Prosjekt/Befaringsdato/`, inkludert `befaringslogg.csv` og `befaringslogg.geojson`.
+Befaringsfoto med retning (kartnord) og koordinater i EUREF89 UTM32 (EPSG:25832). Bildene sorteres på prosjekt og befaringsdato og eksporteres som ZIP med mappestrukturen `Prosjekt/Befaringsdato/`, med befaringsrapport, kart og filer for AutoCAD, Civil 3D, QGIS, Excel og Google Earth.
 
 Appen er ren statisk kode. Den har ingen server eller database. Bildene lagres på telefonen til de eksporteres.
 
+## Slik fungerer appen
+
+**Ta bilder.** Velg prosjekt og dato, trykk «Start befaring» og ta bilder. Velg gjerne kategori (Kum, Ledning, Stikkledning, Sluk, Skade, Grøft, Overflate, Annet) og objekt-ID. De gjelder for bildene som tas til du endrer dem. Merknaden gjelder bare neste bilde og kan snakkes inn med mikrofonknappen der telefonen støtter det.
+
+**Kvalitet.** Linjen over utløseren viser om appen er klar: «Klar» når GPS er innenfor kravet (standard 10 m) og kompasset er stabilt, ellers «Usikker» med årsak. Bilder tatt med svak GPS eller urolig kompass merkes «usikker». Posisjonen er et vektet snitt av GPS-målingene de siste sekundene.
+
+**Kart.** Viser bildene i en befaring med retningssektor, og egen posisjon. Brune punkter har avvik. Trykk på et punkt for å se bildet og redigere.
+
+**Rediger.** Trykk på et bilde under «Bilder» for å endre kategori, objekt-ID, merknad og retning, flytte posisjonen i kartet eller slette. Endringer etter eksport markeres, så du ser hva som må eksporteres på nytt.
+
+**Kalibrering.** Under Innstillinger: sikt langs noe med kjent retning i kartet, skriv inn retningen og trykk «Kalibrer».
+
+**Påminnelse.** Appen varsler om bilder som ikke er eksportert, og kan slette befaringer som er ferdig eksportert.
+
 ## Eksport
 
-**«Eksporter mappe»** gir en ZIP-fil med mappen `Prosjekt/Befaringsdato/`. Den inneholder bildene og disse filene:
+Trykk «Eksporter …» på en befaring. Fyll eventuelt inn deltakere, formål og oppsummering til rapporten (lagres per befaring). Velg hva du vil eksportere og om filen skal deles (delingsmenyen) eller lagres på telefonen. Kompass-stempel og EXIF legges inn i bildene ved eksport, med retning og posisjon slik de er etter eventuell redigering.
+
+**Komplett mappe (ZIP)** gir `Prosjekt/Befaringsdato/` med:
 
 | Fil | Bruk |
 |---|---|
-| `befaringskart.html` | Dobbeltklikk for kart med alle bildene, retningssektorer og bildeliste. Bakgrunnskart fra Kartverket (gråtone/topografisk) eller OpenStreetMap. Krever nett for kartfliser. Må ligge i samme mappe som bildene. |
-| `befaring_autocad.dxf` | Åpne i AutoCAD, eller sett inn med XREF/INSERT i en tegning i EUREF89 UTM32 (meter). Inneholder punkt, retningspil (4 m) og siktsektor langs kartnord, samt nummer. Ctrl+klikk på pil, sirkel eller tekst åpner bildet, så lenge DXF-en ligger i samme mappe som bildene. Lag: BEF_PUNKT, BEF_RETNING, BEF_SIKTSEKTOR, BEF_TEKST. |
-| `befaring_autocad_bilder.lsp` | Setter selve bildene inn i tegningen, som rasterbilder på lag BEF_BILDE. Hvert bilde får en strek til fotopunktet og plasseres bak fotografen, så det ikke dekker retningspilen. APPLOAD filen, skriv `BEFARINGSBILDER` og pek på `befaring_autocad.dxf` i eksportmappen. Standard bildebredde er 8 m (endres øverst i filen). Virker i AutoCAD, Civil 3D og AutoCAD LT 2024 eller nyere. |
-| `befaring_civil3d_PNEZD.csv` | Punktimport i Civil 3D med formatet «PNEZD (comma delimited)». Beskrivelsen er filnavn og merknad. Z er omtrentlig NN2000 (0 der høyde mangler). |
-| `befaring_googleearth.kml` | Åpnes i Google Earth Pro. Bildene vises når KML-filen ligger i samme mappe som bildene. |
-| `befaringslogg.csv` / `.geojson` | Excel og QGIS, som før. |
+| Bildene | Kompass øverst (og info nederst hvis valgt), GPS og retning i EXIF. |
+| `befaringsrapport.pdf` | Forside med deltakere, formål, oppsummering og oversiktskart, deretter to bilder per side med tidspunkt, kategori, objekt-ID, retning, koordinater, kvalitet og merknad. |
+| `befaringskart.html` | Dobbeltklikk for kart med alle bildene. Må ligge i samme mappe som bildene. Bakgrunnskart krever nett. |
+| `befaring_autocad.dxf` | Punkt, retningspil, siktsektor og nummer i UTM32. Ctrl+klikk åpner bildet. Lag: BEF_PUNKT, BEF_RETNING, BEF_SIKTSEKTOR, BEF_TEKST. |
+| `befaring_autocad_bilder.lsp` | Setter bildene inn i tegningen på lag BEF_BILDE. APPLOAD, skriv `BEFARINGSBILDER` og pek på DXF-en. |
+| `befaring_civil3d_PNEZD.csv` | Punktimport i Civil 3D. Z er 0. |
+| `befaring_googleearth.kml` | Google Earth Pro. |
+| `befaringslogg.csv` / `.geojson` | Excel og QGIS (EPSG:25832), med kategori, objekt-ID og kvalitet. |
 
-**«Google Earth (KMZ)»** gir én selvstendig fil med bildene innebygd, for Google Earth (web og Pro). Den kan også importeres i Google My Maps, men der kommer bare punkter, navn og tekst med. Bildene må legges til manuelt i My Maps.
+**Rapport (PDF)** gir bare rapporten. **Google Earth (KMZ)** gir én fil med bildene innebygd.
 
-## Kompass i bildet
-
-Under Innstillinger → «Stempel i bildet» velger du hva som tegnes inn i bildet som lagres: kompassbåndet øverst (standard), kompass og en infolinje nederst med prosjekt, tid og koordinater, eller et rent bilde uten stempel. Valget gjelder nye bilder.
+Stopper Outlook eller OneDrive filen, skyldes det som regel kommunens regler for deling fra nettleseren. Bruk «Lagre på telefonen», eller åpne appen i Edge logget inn med jobbkontoen.
 
 ## Filer
 
@@ -59,11 +75,10 @@ Telefonene får den nye versjonen neste gang appen åpnes med nett.
 ## Før bruk
 
 - **Kompass.** Sikt langs en gate med kjent retning og juster «Kompasskorreksjon» under Innstillinger.
-- **Høyde.** Kontroller høyden på et punkt med kjent NN2000-høyde. Juster «Geoidehøyde», eller velg at telefonen allerede gir høyde over havet.
 - **Eksport.** Eksporter etter hver befaring. «Eksporter mappe» åpner delingsmenyen, så du kan lagre til OneDrive, Teams eller Filer.
 
 ## Begrensninger
 
-- **GPS-nøyaktighet** er typisk 3–10 m i grunnriss og dårligere i høyde. Kompasset forstyrres av stål i nærheten.
+- **GPS-nøyaktighet** er typisk 3–10 m. Kompasset forstyrres av stål i nærheten.
 - **Bildene er ikke synkronisert.** De ligger kun på telefonen til de eksporteres.
 - **Personvern.** Bilder med posisjon kan være personopplysninger hvis personer eller bilskilt er med. Avklar bruk med personvernombudet før appen tas i bruk av flere.
